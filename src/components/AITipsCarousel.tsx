@@ -38,11 +38,52 @@ const getColorForUrgency = (urgency: AITip["urgency"]) => {
   }
 };
 
+const getTipDetails = (tip: AITip) => {
+  const details = {
+    restock: {
+      title: "Restock Recommendation",
+      description:
+        "AI has detected increased demand patterns for this product based on sales data and seasonal trends.",
+      action:
+        "Consider ordering new stock to prevent shortages and maximize sales opportunities.",
+      icon: "📈",
+    },
+    swap: {
+      title: "Inventory Swap Opportunity",
+      description:
+        "A nearby node has excess inventory that matches your low-stock items. This could save you money and time.",
+      action:
+        "Review the swap offer and negotiate terms with the partner node for mutual benefit.",
+      icon: "🔄",
+    },
+    forecast: {
+      title: "Demand Forecast Alert",
+      description:
+        "AI predicts increased demand for this product based on weather patterns, local events, or seasonal trends.",
+      action:
+        "Prepare your inventory levels accordingly to capture the upcoming demand surge.",
+      icon: "🔮",
+    },
+    alert: {
+      title: "Inventory Alert",
+      description:
+        "Your current stock levels are below the recommended threshold. Immediate action may be required.",
+      action:
+        "Check your inventory and consider restocking or requesting swaps from partner nodes.",
+      icon: "⚠️",
+    },
+  };
+
+  return details[tip.type] || details.alert;
+};
+
 export default function AITipsCarousel() {
   const [aiTips, setAITips] = useState<AITip[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [detailTip, setDetailTip] = useState<AITip | null>(null);
 
   useEffect(() => {
     const fetchTips = async () => {
@@ -142,22 +183,27 @@ export default function AITipsCarousel() {
       </div>
 
       <div className="space-y-4">
-        <div
+        <button
+          onClick={() => {
+            setDetailTip(currentTip);
+            setShowDetail(true);
+          }}
           className={cn(
-            "rounded-xl border-2 p-4 min-h-[120px] flex items-center",
-            "transition-all duration-500 ease-in-out",
+            "w-full rounded-xl border-2 p-4 min-h-[120px] flex items-center",
+            "transition-all duration-500 ease-in-out hover:scale-[1.02] hover:shadow-lg",
+            "cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50",
             getColorForUrgency(currentTip.urgency),
           )}
           style={{
             transition:
-              "background-color 0.5s ease-in-out, border-color 0.5s ease-in-out, color 0.5s ease-in-out",
+              "background-color 0.5s ease-in-out, border-color 0.5s ease-in-out, color 0.5s ease-in-out, transform 0.2s ease-in-out",
           }}
         >
           <div className="flex items-start space-x-3 w-full">
             <div className="flex-shrink-0 mt-0.5">
               <Icon className="h-5 w-5 transition-all duration-300" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 text-left">
               <p className="font-medium leading-tight transition-all duration-300">
                 {currentTip.message}
               </p>
@@ -177,10 +223,11 @@ export default function AITipsCarousel() {
                   })}
                 </span>
               </div>
+              <p className="text-xs opacity-60 mt-1">Click for details</p>
             </div>
             <ChevronRight className="h-4 w-4 opacity-50 transition-all duration-300 mt-0.5" />
           </div>
-        </div>
+        </button>
 
         {aiTips.length > 1 && (
           <div className="flex justify-center gap-2 flex-wrap">
@@ -203,6 +250,87 @@ export default function AITipsCarousel() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {showDetail && detailTip && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowDetail(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 shadow-2xl border max-w-md mx-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const details = getTipDetails(detailTip);
+              const Icon = getIconForType(detailTip.type);
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="text-2xl">{details.icon}</div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-foreground">
+                        {details.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {detailTip.product && `For: ${detailTip.product}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowDetail(false)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div
+                    className={cn(
+                      "rounded-lg border p-3 text-sm",
+                      getColorForUrgency(detailTip.urgency),
+                    )}
+                  >
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{detailTip.message}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm text-foreground mb-1">
+                        📋 What this means:
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {details.description}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-sm text-foreground mb-1">
+                        🎯 Recommended action:
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        {details.action}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
+                      <span>Generated by AI Network</span>
+                      <span>
+                        {detailTip.timestamp.toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { BarChart3, Repeat, UserPlus, Store } from "lucide-react";
+import { BarChart3, Repeat, UserPlus, Store, Plus } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -20,6 +20,11 @@ export default function Layout({ children }: LayoutProps) {
       path: "/swap",
       label: "Swap",
       icon: Repeat,
+    },
+    {
+      path: "/add-products",
+      label: "Add Products",
+      icon: Plus,
     },
     {
       path: "/onboarding",
