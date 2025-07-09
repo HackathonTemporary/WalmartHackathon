@@ -5,11 +5,12 @@ export interface Product {
   unit: string;
   category: string;
   threshold: number;
+  expiryDate?: Date;
 }
 
 export interface AITip {
   id: string;
-  type: "restock" | "swap" | "forecast" | "alert";
+  type: "restock" | "swap" | "forecast" | "alert" | "expiry";
   message: string;
   product?: string;
   urgency: "low" | "medium" | "high";
@@ -25,6 +26,20 @@ export interface SwapOffer {
   distance: string;
   estimatedTime: string;
   available: boolean;
+}
+
+export interface IncomingSwapRequest {
+  id: string;
+  fromNode: string;
+  requestingProduct: string;
+  offeringProduct: string;
+  requestedQuantity: number;
+  offeredQuantity: number;
+  unit: string;
+  distance: string;
+  estimatedTime: string;
+  status: "pending" | "accepted" | "declined";
+  timestamp: Date;
 }
 
 export interface NodeInfo {
@@ -44,6 +59,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Grains",
     threshold: 20,
+    expiryDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000), // 45 days
   },
   {
     id: "2",
@@ -52,6 +68,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Sweeteners",
     threshold: 15,
+    expiryDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000), // 120 days
   },
   {
     id: "3",
@@ -60,6 +77,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Grains",
     threshold: 25,
+    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
   },
   {
     id: "4",
@@ -68,6 +86,7 @@ const initialInventory: Product[] = [
     unit: "liters",
     category: "Oils",
     threshold: 8,
+    expiryDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days (matches AI insight)
   },
   {
     id: "5",
@@ -76,6 +95,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Pulses",
     threshold: 10,
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
   },
   {
     id: "6",
@@ -84,6 +104,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Beverages",
     threshold: 5,
+    expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 days
   },
   {
     id: "7",
@@ -92,6 +113,7 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Condiments",
     threshold: 8,
+    // Salt doesn't expire, so no expiry date
   },
   {
     id: "8",
@@ -100,6 +122,25 @@ const initialInventory: Product[] = [
     unit: "kg",
     category: "Vegetables",
     threshold: 12,
+    expiryDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days (matches AI insight for "near expiry")
+  },
+  {
+    id: "9",
+    name: "Milk & Curd",
+    quantity: 15,
+    unit: "liters",
+    category: "Dairy",
+    threshold: 8,
+    expiryDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days (matches AI insight)
+  },
+  {
+    id: "10",
+    name: "Biscuits",
+    quantity: 25,
+    unit: "packets",
+    category: "Snacks",
+    threshold: 10,
+    expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days (matches "next week" AI insight)
   },
 ];
 
@@ -152,6 +193,30 @@ const aiTipsPool: Omit<AITip, "id" | "timestamp">[] = [
     message: "Rain predicted - Salt demand may increase",
     product: "Salt",
     urgency: "low",
+  },
+  {
+    type: "expiry",
+    message: "Dairy products expiring in 2 days - discount pricing recommended",
+    product: "Milk & Curd",
+    urgency: "high",
+  },
+  {
+    type: "expiry",
+    message: "Fresh vegetables near expiry - promote for quick sale",
+    product: "Onions",
+    urgency: "medium",
+  },
+  {
+    type: "expiry",
+    message: "Packaged snacks expiring next week - bundle deals suggested",
+    product: "Biscuits",
+    urgency: "low",
+  },
+  {
+    type: "expiry",
+    message: "Cooking oil expires in 5 days - clear inventory soon",
+    product: "Cooking Oil",
+    urgency: "medium",
   },
 ];
 
@@ -223,10 +288,54 @@ const additionalSwapOffers: SwapOffer[] = [
   },
 ];
 
+// Incoming swap requests data
+const incomingSwapRequests: IncomingSwapRequest[] = [
+  {
+    id: "req-1",
+    fromNode: "Node Alpha",
+    requestingProduct: "Basmati Rice",
+    offeringProduct: "Wheat Flour",
+    requestedQuantity: 15,
+    offeredQuantity: 20,
+    unit: "kg",
+    distance: "1.1 km",
+    estimatedTime: "16 mins",
+    status: "pending",
+    timestamp: new Date(Date.now() - 10 * 60 * 1000), // 10 minutes ago
+  },
+  {
+    id: "req-2",
+    fromNode: "Node Gamma",
+    requestingProduct: "Sugar",
+    offeringProduct: "Dal (Lentils)",
+    requestedQuantity: 10,
+    offeredQuantity: 12,
+    unit: "kg",
+    distance: "2.3 km",
+    estimatedTime: "28 mins",
+    status: "pending",
+    timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+  },
+  {
+    id: "req-3",
+    fromNode: "Node Beta",
+    requestingProduct: "Tea Powder",
+    offeringProduct: "Salt",
+    requestedQuantity: 3,
+    offeredQuantity: 8,
+    unit: "kg",
+    distance: "0.7 km",
+    estimatedTime: "11 mins",
+    status: "pending",
+    timestamp: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+  },
+];
+
 // Simulated state
 let currentInventory = [...initialInventory];
 let currentAITips: AITip[] = [];
 let currentSwapOffers = [...swapOffers];
+let currentIncomingRequests = [...incomingSwapRequests];
 let aiTipIndex = 0;
 let tipIdCounter = 0;
 let lastTipType: string | null = null;
@@ -260,6 +369,17 @@ export const fakeApi = {
     return new Promise((resolve, reject) => {
       try {
         setTimeout(() => resolve([...currentSwapOffers]), 100);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  },
+
+  // Get incoming swap requests
+  getIncomingRequests: (): Promise<IncomingSwapRequest[]> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setTimeout(() => resolve([...currentIncomingRequests]), 100);
       } catch (error) {
         reject(error);
       }
@@ -327,6 +447,32 @@ export const fakeApi = {
         const swap = currentSwapOffers.find((s) => s.id === swapId);
         if (swap) {
           swap.available = false;
+        }
+        resolve(true);
+      }, 500);
+    });
+  },
+
+  // Accept incoming swap request
+  acceptSwapRequest: (requestId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const request = currentIncomingRequests.find((r) => r.id === requestId);
+        if (request) {
+          request.status = "accepted";
+        }
+        resolve(true);
+      }, 500);
+    });
+  },
+
+  // Decline incoming swap request
+  declineSwapRequest: (requestId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const request = currentIncomingRequests.find((r) => r.id === requestId);
+        if (request) {
+          request.status = "declined";
         }
         resolve(true);
       }, 500);
