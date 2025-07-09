@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import SwapCard from "@/components/SwapCard";
-import { fakeApi, SwapOffer } from "@/lib/fakeApi";
+import IncomingRequestCard from "@/components/IncomingRequestCard";
+import { fakeApi, SwapOffer, IncomingSwapRequest } from "@/lib/fakeApi";
 import {
   Repeat,
   Search,
@@ -9,33 +10,42 @@ import {
   MapPin,
   Loader2,
   RefreshCw,
+  Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function SwapMarketplace() {
   const [swapOffers, setSwapOffers] = useState<SwapOffer[]>([]);
+  const [incomingRequests, setIncomingRequests] = useState<
+    IncomingSwapRequest[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<"offers" | "requests">("offers");
 
   useEffect(() => {
-    const fetchSwapOffers = async () => {
+    const fetchData = async () => {
       try {
-        const offers = await fakeApi.getSwapOffers();
+        const [offers, requests] = await Promise.all([
+          fakeApi.getSwapOffers(),
+          fakeApi.getIncomingRequests(),
+        ]);
         setSwapOffers(offers);
+        setIncomingRequests(requests);
       } catch (error) {
-        console.error("Error fetching swap offers:", error);
+        console.error("Error fetching swap data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSwapOffers();
+    fetchData();
 
-    // Poll for new offers every 5 seconds
-    const interval = setInterval(fetchSwapOffers, 5000);
+    // Poll for new data every 5 seconds
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -51,16 +61,24 @@ export default function SwapMarketplace() {
     setRequestCount((prev) => prev + 1);
   };
 
-  const refreshOffers = async () => {
+  const refreshData = async () => {
     setIsLoading(true);
     try {
-      const offers = await fakeApi.getSwapOffers();
+      const [offers, requests] = await Promise.all([
+        fakeApi.getSwapOffers(),
+        fakeApi.getIncomingRequests(),
+      ]);
       setSwapOffers(offers);
+      setIncomingRequests(requests);
     } catch (error) {
-      console.error("Error refreshing swap offers:", error);
+      console.error("Error refreshing swap data:", error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRequestResponse = () => {
+    setRequestCount((prev) => prev + 1);
   };
 
   return (
@@ -83,7 +101,7 @@ export default function SwapMarketplace() {
               </div>
             </div>
             <Button
-              onClick={refreshOffers}
+              onClick={refreshData}
               variant="outline"
               size="sm"
               disabled={isLoading}
@@ -116,78 +134,177 @@ export default function SwapMarketplace() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button
-            variant={showAvailableOnly ? "default" : "outline"}
-            onClick={() => setShowAvailableOnly(!showAvailableOnly)}
-            className="flex items-center space-x-2"
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 p-1 bg-muted rounded-lg">
+          <button
+            onClick={() => setActiveTab("offers")}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === "offers"
+                ? "bg-white text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <Filter className="h-4 w-4" />
-            <span>Available Only</span>
-          </Button>
+            <div className="flex items-center justify-center space-x-2">
+              <Repeat className="h-4 w-4" />
+              <span>Available Offers</span>
+              <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
+                {filteredOffers.length}
+              </span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab("requests")}
+            className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTab === "requests"
+                ? "bg-white text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <Inbox className="h-4 w-4" />
+              <span>Incoming Requests</span>
+              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">
+                {incomingRequests.filter((r) => r.status === "pending").length}
+              </span>
+            </div>
+          </button>
         </div>
 
-        {/* Offers Grid */}
-        {isLoading && swapOffers.length === 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="rounded-2xl border bg-card p-6 shadow-sm">
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="h-10 w-10 bg-muted rounded-xl"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
-                      </div>
-                    </div>
-                    <div className="h-20 bg-muted rounded-xl"></div>
-                    <div className="h-10 bg-muted rounded"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filteredOffers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredOffers.map((offer) => (
-              <SwapCard
-                key={offer.id}
-                offer={offer}
-                onRequestSent={handleRequestSent}
+        {/* Filters */}
+        {activeTab === "offers" && (
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
               />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="flex justify-center mb-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                <Repeat className="h-8 w-8 text-muted-foreground" />
-              </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              No swap offers found
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              {searchTerm
-                ? "Try adjusting your search terms"
-                : "New offers will appear here as they become available"}
-            </p>
-            <Button onClick={refreshOffers} variant="outline">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Offers
+            <Button
+              variant={showAvailableOnly ? "default" : "outline"}
+              onClick={() => setShowAvailableOnly(!showAvailableOnly)}
+              className="flex items-center space-x-2"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Available Only</span>
             </Button>
           </div>
+        )}
+
+        {/* Content based on active tab */}
+        {activeTab === "offers" ? (
+          // Offers Content
+          <>
+            {isLoading && swapOffers.length === 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 bg-muted rounded-xl"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-muted rounded w-1/2"></div>
+                          </div>
+                        </div>
+                        <div className="h-20 bg-muted rounded-xl"></div>
+                        <div className="h-10 bg-muted rounded"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredOffers.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredOffers.map((offer) => (
+                  <SwapCard
+                    key={offer.id}
+                    offer={offer}
+                    onRequestSent={handleRequestSent}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="flex justify-center mb-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <Repeat className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No swap offers found
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchTerm
+                    ? "Try adjusting your search terms"
+                    : "New offers will appear here as they become available"}
+                </p>
+                <Button onClick={refreshData} variant="outline">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Offers
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          // Incoming Requests Content
+          <>
+            {isLoading && incomingRequests.length === 0 ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 bg-muted rounded-xl"></div>
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+                            <div className="h-3 bg-muted rounded w-1/3"></div>
+                          </div>
+                        </div>
+                        <div className="h-20 bg-muted rounded-xl"></div>
+                        <div className="flex gap-3">
+                          <div className="h-10 bg-muted rounded flex-1"></div>
+                          <div className="h-10 bg-muted rounded flex-1"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : incomingRequests.length > 0 ? (
+              <div className="space-y-4">
+                {incomingRequests.map((request) => (
+                  <IncomingRequestCard
+                    key={request.id}
+                    request={request}
+                    onResponse={handleRequestResponse}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="flex justify-center mb-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                    <Inbox className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  No incoming requests
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  New swap requests from other nodes will appear here
+                </p>
+                <Button onClick={refreshData} variant="outline">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Requests
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Info Banner */}

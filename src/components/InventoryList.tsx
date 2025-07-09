@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   CheckCircle,
   Loader2,
+  Calendar,
+  Clock,
 } from "lucide-react";
 
 const getStatusInfo = (product: Product) => {
@@ -39,6 +41,51 @@ const getStatusInfo = (product: Product) => {
       color: "text-green-600 bg-green-50 border-green-200",
       icon: CheckCircle,
       badge: "Good Stock",
+    };
+  }
+};
+
+const getExpiryInfo = (expiryDate?: Date) => {
+  if (!expiryDate) return null;
+
+  const now = new Date();
+  const diffTime = expiryDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: "expired" as const,
+      color: "text-red-600",
+      icon: AlertTriangle,
+      text: "Expired",
+    };
+  } else if (diffDays <= 3) {
+    return {
+      status: "expiring-soon" as const,
+      color: "text-red-600",
+      icon: Clock,
+      text: diffDays === 0 ? "Expires today" : `${diffDays}d left`,
+    };
+  } else if (diffDays <= 7) {
+    return {
+      status: "expiring-week" as const,
+      color: "text-orange-600",
+      icon: Calendar,
+      text: `${diffDays}d left`,
+    };
+  } else if (diffDays <= 30) {
+    return {
+      status: "expiring-month" as const,
+      color: "text-yellow-600",
+      icon: Calendar,
+      text: `${diffDays}d left`,
+    };
+  } else {
+    return {
+      status: "fresh" as const,
+      color: "text-green-600",
+      icon: Calendar,
+      text: `${diffDays}d left`,
     };
   }
 };
@@ -148,6 +195,7 @@ export default function InventoryList() {
       <div className="space-y-3">
         {inventory.map((product) => {
           const statusInfo = getStatusInfo(product);
+          const expiryInfo = getExpiryInfo(product.expiryDate);
           const Icon = statusInfo.icon;
           const isUpdated = updatedItems.has(product.id);
 
@@ -164,9 +212,25 @@ export default function InventoryList() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/80">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-medium">{product.name}</h3>
-                  <p className="text-sm opacity-75">{product.category}</p>
+                  <div className="flex items-center space-x-2 text-sm opacity-75">
+                    <span>{product.category}</span>
+                    {expiryInfo && (
+                      <>
+                        <span>•</span>
+                        <div
+                          className={cn(
+                            "flex items-center space-x-1",
+                            expiryInfo.color,
+                          )}
+                        >
+                          <expiryInfo.icon className="h-3 w-3" />
+                          <span className="font-medium">{expiryInfo.text}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 

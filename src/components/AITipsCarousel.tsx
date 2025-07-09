@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ChevronRight,
   Sparkles,
+  Clock,
 } from "lucide-react";
 
 const getIconForType = (type: AITip["type"]) => {
@@ -20,6 +21,8 @@ const getIconForType = (type: AITip["type"]) => {
       return Brain;
     case "alert":
       return AlertTriangle;
+    case "expiry":
+      return Clock;
     default:
       return Brain;
   }
@@ -71,6 +74,14 @@ const getTipDetails = (tip: AITip) => {
       action:
         "Check your inventory and consider restocking or requesting swaps from partner nodes.",
       icon: "⚠️",
+    },
+    expiry: {
+      title: "Product Expiry Warning",
+      description:
+        "Some products are approaching their expiry dates. Take action to minimize losses and optimize sales.",
+      action:
+        "Implement discount pricing, bundle deals, or quick sale promotions to move inventory before expiry.",
+      icon: "⏰",
     },
   };
 
